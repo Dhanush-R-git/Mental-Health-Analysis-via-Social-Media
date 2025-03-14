@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emotion Detection</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+            max-width: 600px;
+            margin: auto;
+        }
+        input, button, select {
+            padding: 10px;
+            margin: 10px;
+            font-size: 16px;
+        }
+        canvas {
+            max-width: 100%;
+            height: 400px !important;
+        }
+        .count-container {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Emotion Detection</h1>
+
+    <div class="container">
+        <form id="uploadForm" enctype="multipart/form-data">
+            <input type="file" name="file" id="fileInput" required>
+            <button type="submit">Upload & Analyze</button>
+        </form>
+
+        <div class="count-container" id="countDisplay">Emotion Count: -</div>
+
+        <h2>Emotion Analysis Chart</h2>
+        <select id="chartType">
+            <option value="bar">Bar Chart</option>
+            <option value="pie">Pie Chart</option>
+        </select>
+
+        <canvas id="emotionChart"></canvas>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('emotionChart').getContext('2d');
+        let chartType = 'bar';
+        let chart = new Chart(ctx, {
+            type: chartType,
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Emotion Count',
+                    data: [],
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.6)',
+                        'rgba(54, 162, 235, 0.6)',
+                        'rgba(255, 206, 86, 0.6)',
+                        'rgba(75, 192, 192, 0.6)',
+                        'rgba(153, 102, 255, 0.6)',
+                        'rgba(255, 159, 64, 0.6)'
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)',
+                        'rgba(255, 159, 64, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        document.getElementById('uploadForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('fileInput');
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            fetch('/predict', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                
+                // Update emotion counts
+                const counts = data.counts;
+                document.getElementById('countDisplay').innerText = `Emotion Count: ${JSON.stringify(counts)}`;
+
+                // Update chart
+                chart.data.labels = Object.keys(counts);
+                chart.data.datasets[0].data = Object.values(counts);
+                chart.update();
+            })
+            .catch(error => console.error('Error:', error));
+        });
+
+        document.getElementById('chartType').addEventListener('change', function() {
+            chartType = this.value;
+            chart.destroy();
+            chart = new Chart(ctx, {
+                type: chartType,
+                data: {
+                    labels: chart.data.labels,
+                    datasets: [{
+                        label: 'Emotion Count',
+                        data: chart.data.datasets[0].data,
+                        backgroundColor: chart.data.datasets[0].backgroundColor,
+                        borderColor: chart.data.datasets[0].borderColor,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: chartType === 'bar' ? {
+                        y: {
+                            beginAtZero: true
+                        }
+                    } : {}
+                }
+            });
+        });
+    </script>
+
+</body>
+</html>
